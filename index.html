@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sliders">
+            <label for="boidRadius">Boid Radius: <span id="boidRadiusValue">45</span></label>
+            <input type="range" id="boidRadius" min="10" max="80" value="45">
+            <label for="barrierRadius">Barrier Radius: <span id="barrierRadiusValue">80</span></label>
+            <input type="range" id="barrierRadius" min="20" max="120" value="80">
+            <label for="desiredSeperation">Seperation aim: <span id="desiredSeperationValue">20</span></label>
+            <input type="range" id="desiredSeperation" min="10" max="80" value="20" step="5">
+            <label for="maxSpeed">Max Speed: <span id="maxSpeedValue">2.6</span></label>
+            <input type="range" id="maxSpeed" min="1" max="5" value="2.6" step="0.2">
+            <label for="maxForce">Max Force: <span id="maxForceValue">0.05</span></label>
+            <input type="range" id="maxForce" min="0.01" max="0.1" value="0.05" step="0.01">
+            <label for="avoidMouse">Avoid Mouse</label>
+            <input type="checkbox" id="avoidMouse" value="false">
+            <label for="avoidWalls">Avoid Walls</label>
+            <input type="checkbox" id="avoidWalls" value="false">
+            <img src="fish.png" id="fishImg"style="display: none;">
+            <img src="fish2.png" id="fishImg2"style="display: none;">
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
