@@ -1,11 +1,21 @@
 
-
-// Boid class
+/*
+  Class representing a boid (currently a single fish)
+  @property {number} x - Location on x-axis of boid
+  @property {number} y - Location on y-axis of boid
+  @property {context} ctx - context of the canvas
+  @property {string} colour - Colour is currently not used unless choosing to draw boids with arrows
+  @property {object} img - HTMl image element of a fish (element is invisible to the user)
+  @property {object} velocity - current velocity of the boid with x and y values
+  @property {number} size - Size of the boid to be displayed to the screen
+  @property {number} speed - Speed of the boid
+*/
 class Boid {
     constructor(x, y, ctx, colour) {
         this.x = x;
         this.y = y;
         this.ctx = ctx;
+        this.colour = colour;
         if (Math.random() < 0.5) {
             this.img = img;
         } else {
@@ -20,7 +30,11 @@ class Boid {
 
     }
 
+    /*
+    Method to update the boids for each frame (move them)
+    */
     update(boids) {
+        // Colect all forces used for algorithm
         let separationForce = this.separation(boids);
         let alignmentForce = this.alignment(boids);
         let cohesionForce = this.cohesion(boids);
@@ -29,19 +43,22 @@ class Boid {
         let avoidWallsForce = this.avoidWalls();
 
 
+        // Calculate the total velocity from the forces
         this.velocity.x += separationForce.x + alignmentForce.x + cohesionForce.x + avoidMouseForce.x + avoidBarrierForce.x + avoidWallsForce.x + Math.random() * 0.2 - 0.1;
         this.velocity.y += separationForce.y + alignmentForce.y + cohesionForce.y + avoidMouseForce.y + avoidBarrierForce.y + avoidWallsForce.y + Math.random() * 0.2 - 0.1;
 
+        // Limit the speed of the boid
         let speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y)
         if (speed > maxSpeed) {
             this.velocity.x = (this.velocity.x / speed) * maxSpeed;
             this.velocity.y = (this.velocity.y / speed) * maxSpeed;
         }
 
+        // final change of the boids velocity
         this.x += this.velocity.x * this.speed;
         this.y += this.velocity.y * this.speed;
 
-        
+        // This wraps the map around if the avoidWalls variable is false
         if (!avoidWalls) {
             if (this.x > this.ctx.canvas.width + buffer) this.x = -buffer;
             if (this.x < -buffer) this.x = this.ctx.canvas.width + buffer;
@@ -50,10 +67,29 @@ class Boid {
         }  
     }
 
+    /*
+    Method to normalise forces
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
+    normaliseForces(sum, maxForceMulti) {
+        let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
+        sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
+        sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
+        sum.x = Math.max(-maxForce * maxForceMulti, Math.min(maxForce * maxForceMulti, sum.x));
+        sum.y = Math.max(-maxForce * maxForceMulti, Math.min(maxForce * maxForceMulti, sum.y));
+
+        return sum
+    }
+
+    /*
+    Method to calculate force to avoid barriers within the map
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     avoidBarrier() {
         let sum = { x: 0, y: 0 };
         let count = 0
 
+        // add each force to the sum if within the radius of the barrier
         for (let barrier of barriers) {
             let d = Math.sqrt(Math.pow(this.x - barrier.x, 2) + Math.pow(this.y - barrier.y, 2));
             if (d < barrierRadius) {
@@ -65,60 +101,75 @@ class Boid {
             }
         }
 
+        // can be adjusted to affect the magnitude of the force
+        let maxForceMulti = 3;
+
+        // Normalise the forces (calculate average and implement maxForce)
         if (count > 0) {
             sum.x /= count;
             sum.y /= count;
 
-            let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
-            sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
-            sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
-            sum.x = Math.max(-maxForce * 3, Math.min(maxForce * 3, sum.x));
-            sum.y = Math.max(-maxForce * 3, Math.min(maxForce * 3, sum.y));
+            sum = this.normaliseForces(sum, maxForceMulti);
         }
 
         return sum;
     }
 
+    /*
+    Method to calculate force to avoid the users mouse within the map
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     avoidMouse() {
 
         let sum = { x: 0, y: 0};
 
+        // Return forces as 0 if the user has not activated the avoidMouse function
         if (avoidMouse == false) return sum;
 
+        // calculate distance from boid to mouse
         let d = Math.sqrt(Math.pow(this.x - mouse_location.x, 2) + Math.pow(this.y - mouse_location.y, 2))
         let diffX = this.x - mouse_location.x;
         let diffY = this.y - mouse_location.y;
 
+        // if boid within range of mouse, add forces to turn away
         if (d < barrierRadius) {
             sum.x += diffX / d;
             sum.y += diffY / d;
         }
+
+        // can be adjusted to affect the magnitude of the force
+        let maxForceMulti = 1;
         
 
+        // Normalise the forces and implement maxForce
         if (sum.x != 0 && sum.y != 0) {
-            let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
-            sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
-            sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
-            sum.x = Math.max(-maxForce * 2, Math.min(maxForce * 2, sum.x));
-            sum.y = Math.max(-maxForce * 2, Math.min(maxForce * 2, sum.y));
+            sum = this.normaliseForces(sum, maxForceMulti);
         }
     
         return sum;
     }
 
+    /*
+    Method to calculate force to avoid the walls on each side of the map
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     avoidWalls() {
         let sum = { x: 0, y: 0 };
         
+        // return forces as 0 if the user has the avoid walls function turned off
         if (!avoidWalls) return sum;
+
 
         const wallForce = 0.1; // Adjust this force as needed
         
+        // if boid is close to wall on x-axis or past it add a force to turn away
         if (this.x < wallRadius) {
             sum.x = wallForce;
         } else if (this.x > this.ctx.canvas.width - wallRadius) {
             sum.x = -wallForce;
         }
         
+        // if boid is close to wall on y-axis or past it add a force to turn away
         if (this.y < wallRadius) {
             sum.y = wallForce;
         } else if (this.y > this.ctx.canvas.height - wallRadius) {
@@ -129,14 +180,21 @@ class Boid {
     }
     
     
-
+    /*
+    Method to check if another boid is within its sight
+    Sight is determined as a radius with a section removed from behind the boid
+    @returns {object} An object holding if the boid can see the other boid, and the distance represented as d
+    */
     checkSight(other, radius) {
         let d = 0;
     
+        // check if the other boid is the same boid
         if (this.x != other.x && this.y != other.y) {
+            // calculate distance
             d = Math.sqrt(Math.pow(this.x - other.x, 2) + Math.pow(this.y - other.y, 2));
     
             if (d > 0 && d < radius) {
+                // get distances of x and y
                 let diffX = this.x - other.x;
                 let diffY = this.y - other.y;
     
@@ -155,9 +213,6 @@ class Boid {
                     angleDifference = (2 * Math.PI) - angleDifference;
                 }
     
-
-                
-    
                 if (angleDifference < rearViewLimit) {
                     return { canSee: true, d: d };
                 }
@@ -167,14 +222,20 @@ class Boid {
         return { canSee: false, d: d };
     }
 
+    /*
+    Method to calculate a seperation force for the boids to avoid clumping together
+    One of the main 3 rules of the boids algorithm
+    Checks all boids within its sight and calculate an average force to try and maintain the desiredSeperation
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     separation(boids) {
         let sum = { x: 0, y: 0};
         let count = 0;
 
         for (let other of boids) {
-
             const { canSee, d } = this.checkSight(other, desiredSeperation);
 
+            // Check if the other boid is within sight
             if (canSee) {
                 let diffX = this.x - other.x;
                 let diffY = this.y - other.y;
@@ -184,22 +245,26 @@ class Boid {
             }
         }
 
+        // this variable can be adjusted to change the effect of the force on the boid
         let maxForceMulti = 1
 
+        // normalise forces
         if (count > 0) {
             sum.x /= count;
             sum.y /= count;
 
-            let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
-            sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
-            sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
-            sum.x = Math.max(-maxForce * maxForceMulti, Math.min(maxForce* maxForceMulti, sum.x));
-            sum.y = Math.max(-maxForce* maxForceMulti, Math.min(maxForce* maxForceMulti, sum.y));
+            sum = this.normaliseForces(sum, maxForceMulti);
         }
         
         return sum;
     }
 
+    /*
+    Method to calculate a alignment force for the boids to avoid clumping together
+    One of the main 3 rules of the boids algorithm
+    Checks all boids within its sight and calculate an average force to try and maintain alignment with its flock
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     alignment(boids) {
         let sum = { x: 0, y: 0};
         let count = 0;
@@ -207,37 +272,43 @@ class Boid {
         for (let other of boids) {
             const { canSee, d } = this.checkSight(other, boidRadius);
   
+            // if boid within sight, add force of the other boids velocity to sum
             if (canSee) {
                 sum.x += other.velocity.x;
                 sum.y += other.velocity.y;
                 count++;
             }
-
         }
 
+        // this variable can be adjusted to change the effect of the force on the boid
         let maxForceMulti = 1
+
         if (count > 0) {
+            // calculate mean
             sum.x /= count;
             sum.y /= count;
 
-            let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
-            sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
-            sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
-            sum.x = Math.max(-maxForce * maxForceMulti, Math.min(maxForce* maxForceMulti, sum.x));
-            sum.y = Math.max(-maxForce* maxForceMulti, Math.min(maxForce* maxForceMulti, sum.y));
+            // normalise forces
+            sum = this.normaliseForces(sum, maxForceMulti);
         }
 
         return sum;
     }
 
+    /*
+    Method to calculate a cohesion force to try and keep boids in flocks
+    One of the main 3 rules of the boids algorithm
+    Checks all boids within its sight and calculate an average force to try and maintain keep nearby to all
+    @returns {object} An object representing a sum of the forces needed to change for both x and y
+    */
     cohesion(boids) {
         let sum = { x: 0, y: 0 };
         let count = 0;
 
         for (let other of boids) {
-
             const { canSee, d } = this.checkSight(other);
 
+            // if the other boid is visible add the forces to the sum
             if (canSee) {
                 sum.x += other.x;
                 sum.y += other.y;
@@ -245,25 +316,27 @@ class Boid {
             }
         }
 
+        // can be adjusted to affect the magnitude of the force
         let maxForceMulti = 1;
 
         if (count > 0) {
+            //calculate mean
             sum.x /= count;
             sum.y /= count;
 
             sum.x -= this.x;
-            sum.y -= this.y
+            sum.y -= this.y;
 
-            let magnitude = Math.sqrt(sum.x * sum.x + sum.y * sum.y);
-            sum.x = (sum.x / magnitude) * maxSpeed - this.velocity.x;
-            sum.y = (sum.y / magnitude) * maxSpeed - this.velocity.y;
-            sum.x = Math.max(-maxForce * maxForceMulti, Math.min(maxForce * maxForceMulti, sum.x));
-            sum.y = Math.max(-maxForce * maxForceMulti, Math.min(maxForce * maxForceMulti, sum.y));
+            sum = this.normaliseForces(sum, maxForceMulti);
         }
 
         return sum;
     }
 
+    /*
+    Old method for drawing the boids to the canvas as arrows
+    Now has been replaced by the drawFish method, however this can be swapped back as needed
+    */
     drawArrow() {
         let angle = Math.atan2(this.velocity.y, this.velocity.x);
         
@@ -276,6 +349,10 @@ class Boid {
         this.ctx.closePath();
     }
 
+    /*
+    New method for drawing the boids as fish images to the canvas
+    Now has been replaced by the drawFish method, however this can be swapped back as needed
+    */
     drawFish() {
 
         let angle = Math.atan2(this.velocity.y, this.velocity.x) + Math.PI;
@@ -293,6 +370,13 @@ class Boid {
     }
 }
 
+/*
+  Class representing a barrier
+  @property {number} x - Location on x-axis of barrier
+  @property {number} y - Location on y-axis of barrier
+  @property {object} ctx - Context of the canvas element
+  @property {number} size - Size of the barrier
+*/
 class barrier {
     constructor(x, y, ctx) {
         this.x = x;
@@ -301,6 +385,9 @@ class barrier {
         this.size = 10;
     }
 
+    /*
+    Method to draw barrier to the canvas
+    */
     draw() {
         this.ctx.beginPath();
         this.ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); // Draw a circle at (this.x, this.y) with radius this.size
@@ -310,12 +397,16 @@ class barrier {
     }
 }
 
+// Set off main game loop
+animate();
+
 // Main code
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const boids = [];
 const barriers = [];
 
+// images of the two fish image options for the boid
 const img = document.getElementById("fishImg");
 const img2 = document.getElementById("fishImg2");
 
@@ -324,7 +415,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 
-
+// variables that can be tweaked by the user on the page
 let boidRadius = 45;
 let barrierRadius = 80;
 let maxSpeed = 2.6;
@@ -333,9 +424,11 @@ let desiredSeperation = 20;
 let avoidMouse = false;
 let avoidWalls = false;
 
+// variables important for avoiding walls
 let buffer = 5;
 let wallRadius = 120;
 
+// used for calculating the sight of the boid, can adjust the blind angle here
 let exclusionZone = 10 * (Math.PI / 180); // X degrees in radians
 let rearViewLimit = Math.PI - exclusionZone; // Subtract from PI to exclude the rear zone
 
@@ -346,14 +439,17 @@ window.addEventListener('resize', function() {
     canvas.height = window.innerHeight;
 });
 
+// Listener to add boids to the screen
 canvas.addEventListener("click", function(event) {
     let x = event.clientX - canvas.offsetLeft;
     let y = event.clientY - canvas.offsetTop;
-    const r = Math.floor(Math.random() * 150); // Random value for red (0-255)
-    const g = Math.floor(Math.random() * 150); // Random value for green (0-255)
+    // Get random colour for drawing the boids as arrows
+    const r = Math.floor(Math.random() * 150); 
+    const g = Math.floor(Math.random() * 150); 
     const b = Math.floor(Math.random() * 150);
     const rgb = `rgb(${r}, ${g}, ${b})`
 
+    // This adds boids in a cross shape with 2 at each point of the cross
     for (let i = 0; i < 2; i++) {
         boids.push(new Boid(x + 20, y, ctx, rgb));   
         boids.push(new Boid(x - 20, y, ctx, rgb));   
@@ -362,6 +458,7 @@ canvas.addEventListener("click", function(event) {
     }
 });
 
+// Listener for adding a barrier to the screen
 canvas.addEventListener('contextmenu', function(event) {
     event.preventDefault(); // Prevent the default context menu from appearing
 
@@ -371,6 +468,7 @@ canvas.addEventListener('contextmenu', function(event) {
     barriers.push(new barrier(x, y, ctx));
 });
 
+// Main game loop
 function animate() {
     requestAnimationFrame(animate);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -397,7 +495,7 @@ function animate() {
 
 }
 
-animate();
+// Code past here is for the user adjusting the variables via the menu
 
 const boidRadiusSlider = document.getElementById('boidRadius');
 const barrierRadiusSlider = document.getElementById("barrierRadius");
@@ -428,9 +526,6 @@ canvas.addEventListener('mousemove', function(event) {
     mouse_location.x = event.clientX - canvas.offsetLeft;
     mouse_location.y = event.clientY - canvas.offsetTop;
 });
-
-
-
 
 // Function to update values based on slider changes
 function updateValues() {
