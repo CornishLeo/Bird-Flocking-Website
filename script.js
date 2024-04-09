@@ -397,9 +397,6 @@ class barrier {
     }
 }
 
-// Set off main game loop
-animate();
-
 // Main code
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -413,7 +410,6 @@ const img2 = document.getElementById("fishImg2");
 // Set canvas dimensions based on window size
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-
 
 // variables that can be tweaked by the user on the page
 let boidRadius = 45;
@@ -494,6 +490,9 @@ function animate() {
     }
 
 }
+
+// Set off main game loop
+animate();
 
 // Code past here is for the user adjusting the variables via the menu
 
